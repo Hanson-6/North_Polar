@@ -1,0 +1,8 @@
+# Ignore Study Notes
+docs/res/
+
+# Files Under Test
+north_polar/tmp/
+
+# System Files
+.DS_Store
