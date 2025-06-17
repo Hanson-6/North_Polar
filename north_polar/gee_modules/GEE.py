@@ -1,9 +1,11 @@
 import ee
 
 
+
 class GEE:
     def __init__(self, project_id:str):
         self.project_id = project_id
+    
     
     def connect(self):
         """
@@ -13,5 +15,5 @@ class GEE:
             ee.Authenticate()
             ee.Initialize(project=self.project_id)
 
-        except Exception as e:
-            print(f"Error connecting to GEE")
+        except:
+            pass

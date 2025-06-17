@@ -1,13 +1,15 @@
 import ee
 
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
+
 
 # alias for ee.FeatureCollection
-FeatureCollection = ee.featurecollection.FeatureCollection
+ee_FeatureCollection = ee.featurecollection.FeatureCollection
 
 class FeatColl:
-    def __init__(self, path:str = None):
+    def __init__(self, path: Optional[str] = None):
         self.path = path
         self.data = self.load()
         self.getInfo()
@@ -29,17 +31,19 @@ class FeatColl:
         return True
 
 
-    def load(self) -> FeatureCollection:
+    def load(self) -> ee_FeatureCollection:
         """
         If path is valid, then load.
         """
 
         if self.validPath():
             try:
-                fc = FeatureCollection(self.path)
+                fc = ee_FeatureCollection(self.path)
                 return fc
             except Exception as e:
-                raise ValueError(f"Failed to load FeatureCollection from path {self.path}")
+                raise ValueError(f"Failed to load FeatureCollection from path {self.path}") from e
+        else:
+            raise ValueError("Invalid path for FeatureCollection")
             
             
     def getInfo(self):
@@ -49,8 +53,8 @@ class FeatColl:
         + number of features
         """
 
-        self.rectBounds = self.fc.geometry().bounds()
-        self.num_features = self.fc.size()
+        self.rectBounds = self.data.geometry().bounds()
+        self.num_features = self.data.size()
             
     
     """
@@ -64,8 +68,23 @@ class FeatColl:
         """
         Get n-th feature from this collection
         """
+        # Check if num_features is defined
+        if not hasattr(self, 'num_features'):
+            raise ValueError("FeatureCollection size is not defined. Call getInfo() first.")
+        
+        # Ensure num_features is an integer
+        if not isinstance(self.num_features, int):
+            if self.num_features is None:
+                raise ValueError("FeatureCollection size is not defined")
+            else:
+                info = self.num_features.getInfo()
+                if info is None:
+                    raise ValueError("FeatureCollection size could not be retrieved (got None)")
+                self.num_features = int(info)
 
+        # Check if n is within the valid range
         if n < 0 or n >= self.num_features:
             raise IndexError("Index out of range")
-        
-        return self.fc.toList(1, n).get(0)
+
+        # Get the n-th feature
+        return self.data.toList(1, n).get(0)
