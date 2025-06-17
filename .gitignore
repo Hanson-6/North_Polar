@@ -8,5 +8,4 @@ north_polar/tmp/
 .DS_Store
 
 # annotation
-# Ignore all annotation files
 north_polar/annotation/
