@@ -6,3 +6,7 @@ north_polar/tmp/
 
 # System Files
 .DS_Store
+
+# annotation
+# Ignore all annotation files
+north_polar/annotation/
