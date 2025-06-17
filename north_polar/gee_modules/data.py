@@ -1,12 +1,9 @@
 import ee
-
-from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
+from config import *
 
 
-# alias for ee.FeatureCollection
-ee_FeatureCollection = ee.featurecollection.FeatureCollection
 
 class FeatColl:
     def __init__(self, path: Optional[str] = None):
@@ -31,14 +28,14 @@ class FeatColl:
         return True
 
 
-    def load(self) -> ee_FeatureCollection:
+    def load(self) -> ee_featColl:
         """
         If path is valid, then load.
         """
 
         if self.validPath():
             try:
-                fc = ee_FeatureCollection(self.path)
+                fc = ee_featColl(self.path)
                 return fc
             except Exception as e:
                 raise ValueError(f"Failed to load FeatureCollection from path {self.path}") from e
