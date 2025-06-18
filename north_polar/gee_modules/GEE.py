@@ -1,12 +1,14 @@
 import ee
+import json
 from config import *
 
 
 
 class GEE:
     def __init__(self):
-        self.project_id = project_id
+        self.project_id = Config.project_id
         self.connect()
+        
     
     def connect(self):
         """
@@ -15,7 +17,6 @@ class GEE:
         try:
             ee.Authenticate()
             ee.Initialize(project=self.project_id)
-
         except:
             pass
 
@@ -81,3 +82,28 @@ class GEE:
 
 
         return grid_fc
+    
+
+    def readJSON(self, json_path):
+        """
+        Read a JSON file from the specified path.
+
+        Args:
+            json_path (str): Path to the JSON file.
+        
+        Returns:
+            (ee_featColl): Feature collection loaded from the JSON file.
+        """
+
+        coords = []
+
+        with open(json_path, 'r') as file:
+            data = json.load(file)
+
+            if 'annotations' in data:
+                coords = data['annotations']['polygons']['coordinates']
+            else:
+                print("No annotations found in JSON file.")
+
+        
+        return ee_featColl(coords)

@@ -3,7 +3,8 @@ import ee
 
 
 # login info
-project_id = ''
+class Config:
+    project_id = ''
 
 
 # alias

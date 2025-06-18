@@ -6,9 +6,13 @@ from config import *
 
 
 class FeatColl:
-    def __init__(self, path: Optional[str] = None):
+    def __init__(
+            self,
+            path: Optional[str] = None,
+            data: Optional[ee_featColl] = None
+        ):
         self.path = path
-        self.data = self.load()
+        self.data = data if data is not None else self.load()
         self.getInfo()
 
 
