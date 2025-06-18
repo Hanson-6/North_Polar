@@ -1,5 +1,7 @@
 import ee
 import json
+import os
+
 from config import *
 
 
@@ -95,15 +97,22 @@ class GEE:
             (ee_featColl): Feature collection loaded from the JSON file.
         """
 
+        # Validate the JSON file path
+        if isinstance(json_path, str) is False or \
+            json_path.endswith('.json') is False or \
+            not os.path.exists(json_path):
+
+            raise ValueError("Please provide a valid JSON file path.")
+
+        # Extract coordinates
         coords = []
 
         with open(json_path, 'r') as file:
             data = json.load(file)
 
             if 'annotations' in data:
-                coords = data['annotations']['polygons']['coordinates']
+                coords = data['annotations'][0]['polygons'][0]['coordinates']
             else:
                 print("No annotations found in JSON file.")
 
-        
-        return ee_featColl(coords)
+        return ee_featColl(ee_list(coords))
