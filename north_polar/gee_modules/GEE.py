@@ -110,9 +110,71 @@ class GEE:
         with open(json_path, 'r') as file:
             data = json.load(file)
 
+            # import annotations
             if 'annotations' in data:
                 coords = data['annotations'][0]['polygons'][0]['coordinates']
             else:
                 print("No annotations found in JSON file.")
 
         return ee_featColl(ee_list(coords))
+    
+
+    def exportPic(self,
+                  coords,
+                  output_size=(256, 256),
+                  platform='sentinel2',
+                  band_type='rgb'
+                  ):
+        
+        """
+        Export a picture from Google Earth Engine.
+
+        Args:
+            coords (GEE Type): Coordinates of the area to export.
+            output_size (tuple): Size of the output image (width, height).
+            platform (str): Platform to use for the export (e.g., 'sentinel2').
+            band_type (str): Type of bands to export (e.g., 'rgb', 'nir').
+        """
+
+        # Get platform configuration
+        platform_config = PLATFORM_SPECS.get(platform, {})
+        if not platform_config:
+            raise ValueError(f"Platform '{platform}' is not supported.")
+        
+        # Get resolution of the specified band type
+        platform_resolution = platform_config['resolution'].get(band_type, None)
+        if platform_resolution is None:
+            raise ValueError(f"Band type '{band_type}' is not supported for platform '{platform}'.")
+        
+        # Calculate best scale
+        coords =  ee_list(coords.coordinates().get(0))
+
+        sw = ee_list(coords.get(0))
+        ne = ee_list(coords.get(2))
+
+        POINT_W = ee_geometry.Point([sw.get(0), sw.get(1)])
+        POINT_E = ee_geometry.Point([ne.get(0), sw.get(1)])
+        POINT_S = ee_geometry.Point([sw.get(0), sw.get(1)])
+        POINT_N = ee_geometry.Point([sw.get(0), ne.get(1)])
+
+        width_m = POINT_E.distance(POINT_W)  # Convert to kilometers
+        height_m = POINT_N.distance(POINT_S)  # Convert to kilometers
+
+        required_scale_w = width_m.divide(output_size[0])
+        required_scale_h = height_m.divide(output_size[1])
+        required_scale = ee_number(ee_number.min(required_scale_w, required_scale_h))
+
+        optimal_scale = ee_number.max(platform_resolution, required_scale)
+
+        print(f"Optimal scale for export: {optimal_scale.getInfo()} meters/pixel") # Debug
+
+        # # Create the image collection
+        # try:
+        #     coords = ee_geometry.Polygon(coords)
+
+        #     collection = ee_imgColl(platform_config['collection']) \
+        #         .filterBounds(coords) \
+        #         .filterDate(platform_config['start_date'], platform_config['end_date'])
+            
+        # except:
+        #     pass
