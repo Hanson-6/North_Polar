@@ -1,11 +1,16 @@
 import geemap
-
 from config import *
-from GEE import GEE
+
+
 
 class GMap:
-    def __init__(self):
+    def __init__(self, gee):
         self.map = geemap.Map()
+        self.gee = gee
+
+
+    def addLayer(self, data, style, name):
+        self.map.addLayer(data, style, name)
 
 
     def showGrids(self,
@@ -16,7 +21,7 @@ class GMap:
         Show grids of rectangles within the specified bounds.
         """
 
-        grid_fc = GEE().makeGrids(rect_bounds, num_rows, num_cols)
+        grid_fc = self.gee.makeGrids(rect_bounds, num_rows, num_cols)
 
         vis_params = {
             'color': 'blue',
