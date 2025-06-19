@@ -12,6 +12,10 @@ class GMap:
     def addLayer(self, data, style, name):
         self.map.addLayer(data, style, name)
 
+    
+    def setCenter(self, data, zoom=7):
+        self.map.centerObject(data, zoom)
+
 
     def showGrids(self,
                   rect_bounds,
@@ -32,3 +36,13 @@ class GMap:
         self.map.centerObject(grid_fc)
 
         return grid_fc
+
+    
+    def showImg(self, result, zoom):
+        self.setCenter(result['bounds'], zoom)
+
+        self.map.addLayer(
+            result['image'], 
+            result['vis_params'], 
+            f"{result['platform']}"
+        )

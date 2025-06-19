@@ -170,7 +170,8 @@ class Platform:
         if vis_params is None:
             raise ValueError(f"Visualization parameters for platform '{self.name}' are not defined.")
 
-        vis_params['min'] /= 10000
-        vis_params['max'] /= 10000
+        vis_params['min'] = vis_params.get('min', 0) / 10000
+        vis_params['max'] = vis_params.get('max', 3000) / 10000
+        vis_params['gamma'] = vis_params.get('gamma', 1.2)
 
         return vis_params

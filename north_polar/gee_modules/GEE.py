@@ -163,6 +163,12 @@ class GEE:
         Returns:
             An image
         """
+
+        # Make sure coords is Geometry
+        if isinstance(coords, ee_feature):
+            coords = coords.geometry()
+        elif isinstance(coords, ee_featColl):
+            coords = coords.geometry()
         
         # Filter image collections
         plat_coll = self.platform.get_collection()
@@ -175,7 +181,7 @@ class GEE:
         if filters: sentinel_coll = sentinel_coll.filter(ee_filter.lt(filters['cloudCover'], filters['maxCloud']))
 
         # Cloud masking
-        bands = self.platform.get_bands('rgb') # rbg by default
+        bands = self.platform.get_bands(band_type) # rbg by default
 
         if self.platform.name == 'sentinel2':
             def maskClouds(image):
@@ -190,7 +196,22 @@ class GEE:
         # Clip to region
         composite = composite.clip(coords)
 
-        return composite
+        # Prepare visualization params
+        vis_params = self.platform.get_vis_params()
+        if self.platform.name == 'sentinel2':
+            vis_params = {
+                'bands': bands,
+                'min': vis_params.get('min'),
+                'max': vis_params.get('max'),
+                'gamma': vis_params.get('gamma')
+            }
+
+        return {
+            'image': composite,
+            'vis_params': vis_params,
+            'bounds': coords,
+            'platform': self.platform.name
+        }
 
 
 
@@ -206,5 +227,5 @@ if __name__ == "__main__":
         iceland.rectBounds,
         output_size=(1280, 1280/3.99),
     )
-    
+
     print(type(img))
