@@ -7,8 +7,8 @@ from config import *
 
 
 class GEE:
-    def __init__(self):
-        self.project_id = Config.project_id
+    def __init__(self, project_id):
+        self.project_id = project_id
         self.connect()
         
     
@@ -16,11 +16,8 @@ class GEE:
         """
         Connect to Google Earth Engine
         """
-        try:
-            ee.Authenticate()
-            ee.Initialize(project=self.project_id)
-        except:
-            pass
+        ee.Authenticate()
+        ee.Initialize(project=self.project_id)
 
 
     def makeGrids(self,
@@ -145,36 +142,37 @@ class GEE:
         platform_resolution = platform_config['resolution'].get(band_type, None)
         if platform_resolution is None:
             raise ValueError(f"Band type '{band_type}' is not supported for platform '{platform}'.")
+        platform_resolution = ee_number(int(platform_resolution))
         
         # Calculate best scale
         coords =  ee_list(coords.coordinates().get(0))
 
-        sw = ee_list(coords.get(0))
-        ne = ee_list(coords.get(2))
+        get_val = lambda coord_idx, point_idx: ee_number(ee_list(coords.get(coord_idx)).get(point_idx))
+        x_min = get_val(0, 0)
+        y_min = get_val(0, 1)
+        x_max = get_val(2, 0)
+        y_max = get_val(2, 1)
 
-        POINT_W = ee_geometry.Point([sw.get(0), sw.get(1)])
-        POINT_E = ee_geometry.Point([ne.get(0), sw.get(1)])
-        POINT_S = ee_geometry.Point([sw.get(0), sw.get(1)])
-        POINT_N = ee_geometry.Point([sw.get(0), ne.get(1)])
+        width = x_max.subtract(x_min)
+        height = y_max.subtract(y_min)
 
-        width_m = POINT_E.distance(POINT_W)  # Convert to kilometers
-        height_m = POINT_N.distance(POINT_S)  # Convert to kilometers
-
-        required_scale_w = width_m.divide(output_size[0])
-        required_scale_h = height_m.divide(output_size[1])
+        required_scale_w = width.divide(output_size[0])
+        required_scale_h = height.divide(output_size[1])
         required_scale = ee_number(ee_number.min(required_scale_w, required_scale_h))
+
+        print(f"Required scale for export: {required_scale.getInfo()} meters/pixel") # Debug
 
         optimal_scale = ee_number.max(platform_resolution, required_scale)
 
         print(f"Optimal scale for export: {optimal_scale.getInfo()} meters/pixel") # Debug
 
-        # # Create the image collection
-        # try:
-        #     coords = ee_geometry.Polygon(coords)
+        # Create the image collection
+        try:
+            coords = ee_geometry.Polygon(coords)
 
-        #     collection = ee_imgColl(platform_config['collection']) \
-        #         .filterBounds(coords) \
-        #         .filterDate(platform_config['start_date'], platform_config['end_date'])
+            collection = ee_imgColl(platform_config['collection']) \
+                .filterBounds(coords) \
+                .filterDate(platform_config['start_date'], platform_config['end_date'])
             
-        # except:
-        #     pass
+        except:
+            pass

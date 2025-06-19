@@ -2,12 +2,6 @@ import ee
 
 
 
-# login info
-class Config:
-    project_id = ''
-
-
-
 # alias
 ee_feature = ee.feature.Feature
 ee_featColl = ee.featurecollection.FeatureCollection
