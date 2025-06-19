@@ -89,3 +89,88 @@ class FeatColl:
 
         # Get the n-th feature
         return self.data.toList(1, n).get(0)
+    
+
+
+class Platform:
+    """
+    Manage platform specifications for Earth Engine data.
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+
+        if name.lower() not in PLATFORM_SPECS:
+            print("Available platforms are:", \
+                  '\n\t+'.join(PLATFORM_SPECS.keys()))
+            raise ValueError(f"Platform '{name}' is not supported.")
+        else:
+            self.specs = PLATFORM_SPECS[name]
+
+
+    def get_bands(self, band_type: str):
+        """
+        Get the list of bands for a specific band type.
+        """
+
+        bands = self.specs['bands'].get(band_type, [])
+
+        if not bands:
+            raise ValueError(f"Band type '{band_type}' is not defined in platform '{self.name}'.")
+        
+        return bands
+
+
+    def get_resolution(self, band_type: str):
+        """
+        Get the resolution for a specific band type.
+        """
+
+        resolution = self.specs['resolution'].get(band_type, None)
+
+        if resolution is None:
+            raise ValueError(f"Resolution for band type '{band_type}' is not defined in platform '{self.name}'.")
+
+        return ee_number(resolution)
+    
+
+    def get_collection(self):
+        """
+        Get the collection of the platform
+        """
+
+        collection = self.specs.get('collection', None)
+
+        if collection is None:
+            raise ValueError(f"Collection for platform '{self.name}' is not defined.")
+
+        return collection
+    
+
+    def get_filter(self):
+        """
+        Get the filter for the platform
+        """
+
+        filters = self.specs.get('filters', None)
+
+        if filters is None:
+            raise ValueError(f"Filter for platform '{self.name}' is not defined.")
+
+        return filters
+
+
+    def get_vis_params(self):
+        """
+        Get the visualization parameters for the platform
+        """
+
+        vis_params = self.specs.get('vis_params', None)
+
+        if vis_params is None:
+            raise ValueError(f"Visualization parameters for platform '{self.name}' are not defined.")
+
+        vis_params['min'] /= 10000
+        vis_params['max'] /= 10000
+
+        return vis_params

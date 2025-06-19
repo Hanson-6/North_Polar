@@ -1,17 +1,21 @@
 import ee
 import json
 import os
+import io
+from PIL import Image
+import requests
 
 from config import *
-
+from data import FeatColl, Platform
 
 
 class GEE:
-    def __init__(self, project_id):
+    def __init__(self, project_id, platform_name):
         self.project_id = project_id
         self.connect()
-        
+        self.platform = Platform(platform_name)
     
+
     def connect(self):
         """
         Connect to Google Earth Engine
@@ -116,63 +120,91 @@ class GEE:
         return ee_featColl(ee_list(coords))
     
 
-    def exportPic(self,
-                  coords,
-                  output_size=(256, 256),
-                  platform='sentinel2',
-                  band_type='rgb'
-                  ):
-        
+    def calScale(self,
+                coords,
+                output_size=(256, 256),
+                debug=False):
         """
-        Export a picture from Google Earth Engine.
-
-        Args:
-            coords (GEE Type): Coordinates of the area to export.
-            output_size (tuple): Size of the output image (width, height).
-            platform (str): Platform to use for the export (e.g., 'sentinel2').
-            band_type (str): Type of bands to export (e.g., 'rgb', 'nir').
+        Calculate the scale for the given polygon coordinates and output size.
         """
 
-        # Get platform configuration
-        platform_config = PLATFORM_SPECS.get(platform, {})
-        if not platform_config:
-            raise ValueError(f"Platform '{platform}' is not supported.")
-        
-        # Get resolution of the specified band type
-        platform_resolution = platform_config['resolution'].get(band_type, None)
-        if platform_resolution is None:
-            raise ValueError(f"Band type '{band_type}' is not supported for platform '{platform}'.")
-        platform_resolution = ee_number(int(platform_resolution))
-        
-        # Calculate best scale
-        coords =  ee_list(coords.coordinates().get(0))
+        lat_log = ee_list(coords.coordinates().get(0))
+        get_val = lambda coord_idx, point_idx: ee_number(ee_list(lat_log.get(coord_idx)).get(point_idx))
 
-        get_val = lambda coord_idx, point_idx: ee_number(ee_list(coords.get(coord_idx)).get(point_idx))
         x_min = get_val(0, 0)
         y_min = get_val(0, 1)
         x_max = get_val(2, 0)
         y_max = get_val(2, 1)
 
-        width = x_max.subtract(x_min)
-        height = y_max.subtract(y_min)
+        # Calculate width and height in pixels
+        width_pixels = ee_number(output_size[0])
+        height_pixels = ee_number(output_size[1])
 
-        required_scale_w = width.divide(output_size[0])
-        required_scale_h = height.divide(output_size[1])
-        required_scale = ee_number(ee_number.min(required_scale_w, required_scale_h))
+        # Calculate scale
+        scale_x = x_max.subtract(x_min).divide(width_pixels)
+        scale_y = y_max.subtract(y_min).divide(height_pixels)
+        scale = ee_number.min(scale_x, scale_y)
 
-        print(f"Required scale for export: {required_scale.getInfo()} meters/pixel") # Debug
+        if debug: print(f"Calculated scale: {scale.getInfo()}")
 
-        optimal_scale = ee_number.max(platform_resolution, required_scale)
+        return scale
 
-        print(f"Optimal scale for export: {optimal_scale.getInfo()} meters/pixel") # Debug
 
-        # Create the image collection
-        try:
-            coords = ee_geometry.Polygon(coords)
+    def exportPic(self,
+              coords,
+              output_size=(256, 256),
+              band_type='rgb',
+              start_date='2022-01-01',
+              end_date='2023-12-31'):
+    
+        """
+        Export a picture from Google Earth Engine.
+        
+        Returns:
+            An image
+        """
+        
+        # Filter image collections
+        plat_coll = self.platform.get_collection()
+        sentinel_coll = ee_imgColl(plat_coll) \
+                        .filterBounds(coords) \
+                        .filterDate(start_date, end_date) \
+    
+        # Cloud filtering
+        filters = self.platform.get_filter()
+        if filters: sentinel_coll = sentinel_coll.filter(ee_filter.lt(filters['cloudCover'], filters['maxCloud']))
 
-            collection = ee_imgColl(platform_config['collection']) \
-                .filterBounds(coords) \
-                .filterDate(platform_config['start_date'], platform_config['end_date'])
-            
-        except:
-            pass
+        # Cloud masking
+        bands = self.platform.get_bands('rgb') # rbg by default
+
+        if self.platform.name == 'sentinel2':
+            def maskClouds(image):
+                qa = image.select('QA60')
+                mask = qa.bitwiseAnd(1 << 10).eq(0).And(qa.bitwiseAnd(1 << 11).eq(0))
+                return image.updateMask(mask).divide(10000).select(bands)
+            sentinel_coll = sentinel_coll.map(maskClouds)
+
+        # Create Composite
+        composite = sentinel_coll.median()
+
+        # Clip to region
+        composite = composite.clip(coords)
+
+        return composite
+
+
+
+# test
+if __name__ == "__main__":
+    project_id = 'planar-compass-462105-e3'
+    platform_name = 'sentinel2'
+    gee = GEE(project_id, platform_name)
+    
+    iceland = FeatColl('users/liuhsuu6/iceland')
+
+    img = gee.exportPic(
+        iceland.rectBounds,
+        output_size=(1280, 1280/3.99),
+    )
+    
+    print(type(img))
