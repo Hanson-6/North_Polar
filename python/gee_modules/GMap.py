@@ -1,5 +1,6 @@
 import geemap
-from config import *
+
+from gee_modules.config import *
 
 
 

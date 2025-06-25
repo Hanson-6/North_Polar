@@ -1,7 +1,8 @@
 import ee
 
-from config import *
-from data import FeatColl, Platform
+from gee_modules.config import *
+from gee_modules.data import FeatColl, Platform
+
 
 
 class GEE:

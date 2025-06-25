@@ -1,7 +1,7 @@
 import ee
 from typing import Dict, Any, Optional
 
-from config import *
+from gee_modules.config import *
 
 
 
