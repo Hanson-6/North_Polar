@@ -8,3 +8,4 @@ test/
 # System Files
 .DS_Store
 
+__pycache__/
