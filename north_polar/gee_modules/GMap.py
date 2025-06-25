@@ -9,7 +9,10 @@ class GMap:
         self.gee = gee
 
 
-    def addLayer(self, data, style, name):
+    def addLayer(self,
+                 data,
+                 name,
+                 style = {'color': 'red'}):
         self.map.addLayer(data, style, name)
 
     
