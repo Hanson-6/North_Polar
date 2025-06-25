@@ -2,10 +2,8 @@
 docs/res/
 
 # Files Under Test
-north_polar/tmp/
-test/
+test.py
 
 # System Files
 .DS_Store
-
 __pycache__/
