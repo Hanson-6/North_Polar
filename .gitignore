@@ -3,9 +3,8 @@ docs/res/
 
 # Files Under Test
 north_polar/tmp/
+test/
 
 # System Files
 .DS_Store
 
-# annotation
-north_polar/annotation/
