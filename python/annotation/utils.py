@@ -25,7 +25,7 @@ class Tool:
         countries_polygons = {}
 
         countries = os.listdir(dir_path)
-        # print(f"Available countries are {countries}.") # 
+        # print(f"Available countries are {countries}.") # Debug
 
         for country in countries:
             json_path = f"{dir_path}/{country}"

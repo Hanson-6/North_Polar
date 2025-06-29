@@ -179,20 +179,34 @@ class GEE:
     
 
     def importData(self, dir_path):
-        countries_polygons = Tool.readBunchJSON(dir_path)
+        """
+        Import JSON data from given directory path, and give back
+            1. json data of type ee.FeatureCollection
+            2. bounds of each feature
 
-        def create_feature(coords_with_index):
-            index, coords = coords_with_index
-            polygon = ee_poly(coords)
-            return ee_feature(polygon, {'id': index})
+        Return:
+            Dict[
+                ee.FeatureCollection,
+                ee.Geometry.polygon
+            ]
+
+        """
+        countries_polygons = Tool.readBunchJSON(dir_path)
         
-        
+        dataset = {}
+
         for country in countries_polygons.keys():
             coords = countries_polygons[country]
-            coords = ee_featColl(list(map(create_feature, enumerate(coords))))
-            countries_polygons[country] = coords
 
-        return countries_polygons
+            coords = ee_featColl(list(map(lambda coord : ee_feature(ee_poly(coord)), coords)))
+            bounds = ee_featColl(coords.map(lambda coord : ee_feature(coord.geometry().bounds())))
+
+            dataset[country] = {
+                'coords': coords,
+                'bounds': bounds
+            }
+
+        return dataset
     
 
 
