@@ -2,8 +2,9 @@ import ee
 
 from gee_modules.config import *
 from gee_modules.data import FeatColl, Platform
+from annotation.utils import Tool
 
-
+from typing import List, Dict
 
 class GEE:
     def __init__(self, project_id, platform_name):
@@ -175,7 +176,24 @@ class GEE:
             'bounds': coords,
             'platform': self.platform.name
         }
+    
 
+    def importData(self, dir_path):
+        countries_polygons = Tool.readBunchJSON(dir_path)
+
+        def create_feature(coords_with_index):
+            index, coords = coords_with_index
+            polygon = ee_poly(coords)
+            return ee_feature(polygon, {'id': index})
+        
+        
+        for country in countries_polygons.keys():
+            coords = countries_polygons[country]
+            coords = ee_featColl(list(map(create_feature, enumerate(coords))))
+            countries_polygons[country] = coords
+
+        return countries_polygons
+    
 
 
 # test

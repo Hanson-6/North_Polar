@@ -3,6 +3,7 @@ docs/res/
 
 # Files Under Test
 test.py
+area/
 
 # System Files
 .DS_Store

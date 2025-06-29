@@ -25,8 +25,11 @@ class Tool:
         countries_polygons = {}
 
         countries = os.listdir(dir_path)
+        # print(f"Available countries are {countries}.") # 
+
         for country in countries:
             json_path = f"{dir_path}/{country}"
+            # use [:-5] to cancel *.json
             countries_polygons[country[:-5]] = Tool.readJSON(json_path)
 
         return countries_polygons
@@ -34,6 +37,6 @@ class Tool:
 
 
 if __name__ == '__main__':
-    dir_path = 'north_polar/model/dataset/polygons'
+    dir_path = 'python\model\dataset\polygons'
     data = Tool.readBunchJSON(dir_path)
     print(data.keys())
