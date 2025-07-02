@@ -11,6 +11,8 @@ ee_list = ee.ee_list.List
 ee_number = ee.ee_number.Number
 ee_imgColl = ee.imagecollection.ImageCollection
 ee_filter = ee.filter.Filter
+ee_dict = ee.dictionary.Dictionary
+ee_element = ee.element.Element
 
 
 # Platform Specifications

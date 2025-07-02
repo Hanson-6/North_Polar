@@ -1,5 +1,4 @@
-import ee
-from typing import Dict, Any, Optional
+from typing import Optional
 
 from gee_modules.config import *
 
