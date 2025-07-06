@@ -82,4 +82,8 @@ class ArcticSegmentationDataset(Dataset):
         mask_np     = np.array(mask, dtype=np.int64)                 # [H,W]
         mask_tensor = torch.from_numpy(mask_np)                      # dtype long
 
+<<<<<<< HEAD
         return img_tensor, mask_tensor
+=======
+        return img_tensor, mask_tensor
+>>>>>>> 25546efac44ce331a9a06828eb6330791a178c6e

@@ -49,7 +49,11 @@ def main():
     device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model     = DeepLabV3(num_classes=2, backbone_pretrained=True).to(device)
     criterion = nn.CrossEntropyLoss()
+<<<<<<< HEAD
     optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=1e-5)
+=======
+    optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-5)
+>>>>>>> 25546efac44ce331a9a06828eb6330791a178c6e
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
 
