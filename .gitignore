@@ -8,9 +8,7 @@ area/
 # System Files
 .DS_Store
 __pycache__/
+.vscode/
 
 # dataset
 dataset/
-
-# model
-deeplab/
