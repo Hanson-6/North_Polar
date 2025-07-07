@@ -34,9 +34,3 @@ class Tool:
 
         return countries_polygons
         
-
-
-if __name__ == '__main__':
-    dir_path = 'python\model\dataset\polygons'
-    data = Tool.readBunchJSON(dir_path)
-    print(data.keys())
