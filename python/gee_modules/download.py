@@ -1,4 +1,3 @@
-import ee
 import os
 import time
 import json
@@ -9,6 +8,11 @@ import logging
 from tqdm import tqdm
 import requests
 
+
+from PIL import Image
+import io
+import numpy as np
+from osgeo import gdal, osr
 
 
 class Downloader:
@@ -35,15 +39,23 @@ class Downloader:
     
 
     def setup_saveDir(self):
+        self.base_dir = f"{os.getcwd()}/model/dataset"
         self.date = datetime.now().strftime('%Y-%m-%d')
-        self.save_dir = f"{os.getcwd()}/model/dataset/sentinel_2/{self.country}/img_{self.date}"
-        self.bound_dir = f"{os.getcwd()}/model/dataset/bounds"
+        
+        self.save_img_dir = f"{self.base_dir}/sentinel_2/{self.country}/img/{self.date}"
+        self.save_geotiff_dir = f"{self.base_dir}/sentinel_2/{self.country}/geotiff/{self.date}"
+        
+        self.bound_dir = f"{self.base_dir}/bounds"
+        
 
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        if not os.path.exists(self.save_img_dir):
+            os.makedirs(self.save_img_dir)
 
         if not os.path.exists(self.bound_dir):
             os.makedirs(self.bound_dir)
+
+        if not os.path.exists(self.save_geotiff_dir):
+            os.makedirs(self.save_geotiff_dir)
         
 
     def setup_logging(self):
@@ -52,7 +64,7 @@ class Downloader:
             level=logging.INFO, # level of general level
             format='%(asctime)s - %(levelname)s - %(message)s', # file formart
             handlers=[
-                logging.FileHandler(f'{self.save_dir}/log.log'), # save log file
+                logging.FileHandler(f'{self.save_img_dir}/log.log'), # save log file
                 logging.StreamHandler() # print on terminal
             ]
         )
@@ -137,7 +149,8 @@ class Downloader:
                 # 生成图片URL
                 url = image.visualize(**vis_params).getThumbURL({
                     'dimensions': output_size,
-                    'format': 'png'
+                    'format': 'png',
+                    # 'format': 'tiff',
                 })
                 
                 # 下载
@@ -191,7 +204,8 @@ class Downloader:
         for pic in pics_list:
             idx = pic.get('index', 0)
             img_name = f"{self.country}_{idx}.png"
-            output_path = f"{self.save_dir}/{img_name}"
+            # img_name = f"{self.country}_{idx}.tiff"
+            output_path = f"{self.save_img_dir}/{img_name}"
             
             # 跳过已存在的文件
             if os.path.exists(output_path):
@@ -238,3 +252,145 @@ class Downloader:
             'failed': self.failed_count,
             'total': total_count
         }
+    
+
+    def png_to_geotiff(self, png_input, output_path, bounds, epsg=4326):
+        try:
+            # 1. 读取PNG图像
+            if isinstance(png_input, str):
+                img = Image.open(png_input)
+            elif isinstance(png_input, bytes):
+                img = Image.open(io.BytesIO(png_input))
+            else:
+                img = Image.open(png_input)
+            
+            # 转换为numpy数组
+            img_array = np.array(img)
+            
+            # 2. 处理bounds
+            if hasattr(bounds, 'getInfo'):
+                # 如果是GEE对象，获取实际坐标
+                bounds_info = bounds.bounds().getInfo()
+                coords = bounds_info['coordinates'][0]
+                west = coords[0][0]
+                south = coords[0][1]
+                east = coords[2][0]
+                north = coords[2][1]
+            else:
+                # 如果是列表 [west, south, east, north]
+                west, south, east, north = bounds
+            
+            # 3. 获取图像尺寸
+            if len(img_array.shape) == 3:
+                height, width, bands = img_array.shape
+            else:
+                height, width = img_array.shape
+                bands = 1
+            
+            # 4. 创建GeoTIFF
+            driver = gdal.GetDriverByName('GTiff')
+            
+            # 确定数据类型
+            if img_array.dtype == np.uint8:
+                gdal_dtype = gdal.GDT_Byte
+            elif img_array.dtype == np.uint16:
+                gdal_dtype = gdal.GDT_UInt16
+            else:
+                gdal_dtype = gdal.GDT_Float32
+            
+            # 创建数据集
+            dataset = driver.Create(output_path, width, height, bands, gdal_dtype)
+            
+            # 5. 设置地理变换参数
+            # GeoTransform = [左上角X, 像素宽度, 旋转, 左上角Y, 旋转, 像素高度]
+            pixel_width = (east - west) / width
+            pixel_height = (south - north) / height  # 注意是负值
+            
+            geotransform = [west, pixel_width, 0, north, 0, pixel_height]
+            dataset.SetGeoTransform(geotransform)
+            
+            # 6. 设置投影
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(epsg)
+            dataset.SetProjection(srs.ExportToWkt())
+            
+            # 7. 写入图像数据
+            if bands == 1:
+                dataset.GetRasterBand(1).WriteArray(img_array)
+            else:
+                for i in range(bands):
+                    dataset.GetRasterBand(i + 1).WriteArray(img_array[:, :, i])
+            
+            # 8. 刷新缓存
+            dataset.FlushCache()
+            dataset = None
+            
+            return True
+            
+        except Exception as e:
+            print(f"创建GeoTIFF失败: {str(e)}")
+            return False
+        
+
+    def convert_pngs_to_geotiff(self):
+        # 检查PNG文件夹是否存在
+        if not os.path.exists(self.save_img_dir):
+            self.logger.error(f"PNG图片目录不存在: {self.save_img_dir}")
+            return {'success': 0, 'failed': 0, 'total': 0}
+        
+        # 检查bounds是否存在
+        if not os.path.exists(f"{self.bound_dir}/{self.country}.json"):
+            self.logger.error(f"bounds文件不存在: s{self.country}.json")
+            return {'success': 0, 'failed': 0, 'total': 0}
+        
+        with open(f"{self.bound_dir}/{self.country}.json", 'r') as file:
+            bounds = json.load(file)
+        
+        # 获取所有PNG文件
+        img_names = [f[:-4] for f in os.listdir(self.save_img_dir) if f.endswith('.png')]
+        if not img_names:
+            self.logger.warning(f"PNG图片目录为空: {self.save_img_dir}")
+            return {'success': 0, 'failed': 0, 'total': 0}
+        
+        tasks = []
+
+        for img_name in img_names:
+            idx = int(img_name.split("_")[1])
+            img_path = f"{self.save_img_dir}/{img_name}.png"
+            tiff_path = f"{self.save_geotiff_dir}/{img_name}.tiff"
+
+            bound = bounds[idx]
+
+            west = bound[0][0]
+            south = bound[0][1]
+            east = bound[2][0]
+            north = bound[2][1]
+
+            tasks.append({
+                "idx": idx,
+                "img_path": img_path,
+                "output_path": tiff_path,
+                "bound": [west, south, east, north],
+                "epsg": 4326
+            })
+        
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_task = {
+            executor.submit(
+                self.png_to_geotiff,
+                task["img_path"],
+                task["output_path"],
+                task["bound"],
+                task["epsg"]
+                ): task for task in tasks
+        }
+        
+        # 使用进度条
+        with tqdm(total=len(tasks), desc="转换进度") as pbar:
+            for future in as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    self.logger.error(f"任务异常 {task['png_file']}: {str(e)}")
+                pbar.update(1)
