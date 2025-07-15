@@ -47,16 +47,39 @@ class ArcticSegmentationDataset(Dataset):
         img = Image.fromarray(np.transpose(img_array, (1,2,0))).convert("RGB")
         img = img.resize(self.output_size)
 
-        # 3) 载入多边形经纬度坐标
+        # 3) 载入多边形经纬度坐标，并摊平所有环
         poly_path = os.path.join(self.polygons_dir, f"{region}.json")
         with open(poly_path, 'r') as f:
-            geo_coords = json.load(f)  # 可能是多环结构
+            data = json.load(f)
 
-        # 4) 处理多环或单环结构，摊平所有点
-        if geo_coords and isinstance(geo_coords[0][0], list):
-            coords_list = [pt for ring in geo_coords for pt in ring]
+        coords_list = []
+        # 情况 A：标准 GeoJSON FeatureCollection
+        if isinstance(data, dict) and "features" in data:
+            for feat in data["features"]:
+                geom = feat.get("geometry", {})
+                gtype = geom.get("type", "")
+                coords = geom.get("coordinates", [])
+                if gtype == "Polygon":
+                    for ring in coords:
+                        coords_list.extend(ring)
+                elif gtype == "MultiPolygon":
+                    for poly in coords:
+                        for ring in poly:
+                            coords_list.extend(ring)
+        # 情况 B：顶层就是多边形列表
+        elif isinstance(data, list) and data and isinstance(data[0], list):
+            for poly_coords in data:
+                # 如果是多环结构
+                if isinstance(poly_coords[0], list) and isinstance(poly_coords[0][0], list):
+                    for ring in poly_coords:
+                        coords_list.extend(ring)
+                else:
+                    coords_list.extend(poly_coords)
         else:
-            coords_list = geo_coords
+            raise RuntimeError(f"无法识别的多边形结构：{poly_path}")
+
+        if not coords_list:
+            raise RuntimeError(f"{region}.json 中未提取到任何坐标点")
 
         # 5) 经纬度转像素坐标 (col, row)
         pix_coords = []
@@ -82,8 +105,4 @@ class ArcticSegmentationDataset(Dataset):
         mask_np     = np.array(mask, dtype=np.int64)                 # [H,W]
         mask_tensor = torch.from_numpy(mask_np)                      # dtype long
 
-<<<<<<< HEAD
         return img_tensor, mask_tensor
-=======
-        return img_tensor, mask_tensor
->>>>>>> 25546efac44ce331a9a06828eb6330791a178c6e
