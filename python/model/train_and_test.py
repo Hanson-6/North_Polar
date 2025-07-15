@@ -152,3 +152,5 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42)
     args = parser.parse_args()
     train_and_test(args)
+
+    
