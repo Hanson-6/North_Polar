@@ -139,9 +139,9 @@ if __name__ == '__main__':
                         default=r'D:\Download\North_Polar\python\model\dataset\sentinel_2',
                         help='Sentinel-2 GeoTIFF 目录')
     parser.add_argument('--kfold', type=int, default=10, help='K 折数')
-    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--epochs', type=int, default=30)
     parser.add_argument('--bs', type=int, default=16)
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=5e-4)
     parser.add_argument('--wd', type=float, default=1e-6)
     parser.add_argument('--step', type=int, default=5)
     parser.add_argument('--nc', type=int, default=2)
