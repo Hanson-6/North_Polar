@@ -11,4 +11,8 @@ __pycache__/
 .vscode/
 
 # dataset
-dataset/
+
+
+# model
+#deeplab/
+#train_and_test.py/

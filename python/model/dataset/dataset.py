@@ -37,72 +37,53 @@ class ArcticSegmentationDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        img_path, region = self.samples[idx]
+      img_path, region = self.samples[idx]
 
-        # 2) 读图并保留原始大小
-        with rasterio.open(img_path) as src:
-            img_array = src.read([1,2,3])  # assuming RGB bands
-            transform = src.transform
-            width, height = src.width, src.height
-        img = Image.fromarray(np.transpose(img_array, (1,2,0))).convert("RGB")
-        img = img.resize(self.output_size)
+      # 2) 读图并保留原始大小
+      with rasterio.open(img_path) as src:
+          img_array = src.read([1,2,3])  # assuming RGB bands
+          transform = src.transform
+          width, height = src.width, src.height
+      img = Image.fromarray(np.transpose(img_array, (1,2,0))).convert("RGB")
+      # 将图像缩放到指定输出尺寸
+      img = img.resize(self.output_size)
 
-        # 3) 载入多边形经纬度坐标，并摊平所有环
-        poly_path = os.path.join(self.polygons_dir, f"{region}.json")
-        with open(poly_path, 'r') as f:
-            data = json.load(f)
+      # 3) 载入多边形经纬度坐标
+      poly_path = os.path.join(self.polygons_dir, f"{region}.json")
+      with open(poly_path, 'r') as f:
+          data = json.load(f)
 
-        coords_list = []
-        # 情况 A：标准 GeoJSON FeatureCollection
-        if isinstance(data, dict) and "features" in data:
-            for feat in data["features"]:
-                geom = feat.get("geometry", {})
-                gtype = geom.get("type", "")
-                coords = geom.get("coordinates", [])
-                if gtype == "Polygon":
-                    for ring in coords:
-                        coords_list.extend(ring)
-                elif gtype == "MultiPolygon":
-                    for poly in coords:
-                        for ring in poly:
-                            coords_list.extend(ring)
-        # 情况 B：顶层就是多边形列表
-        elif isinstance(data, list) and data and isinstance(data[0], list):
-            for poly_coords in data:
-                # 如果是多环结构
-                if isinstance(poly_coords[0], list) and isinstance(poly_coords[0][0], list):
-                    for ring in poly_coords:
-                        coords_list.extend(ring)
-                else:
-                    coords_list.extend(poly_coords)
-        else:
-            raise RuntimeError(f"无法识别的多边形结构：{poly_path}")
+    # 4) 解析 JSON，提取多边形坐标列表
+      polygons = []
+      if isinstance(data, list) and isinstance(data[0], list):
+          polygons = data
+      else:
+          raise RuntimeError(f"无法识别的多边形结构：{poly_path}")
 
-        if not coords_list:
-            raise RuntimeError(f"{region}.json 中未提取到任何坐标点")
+      # 5) 创建一个与原始影像大小相同的空白掩膜，用于绘制多边形区域
+      mask = Image.new('L', (width, height), 0)
+      drawer = ImageDraw.Draw(mask)
+      for ring in polygons:
+          try:
+              pixel_coords = []
+              # 将地理坐标 (lon, lat) 转为图像像素坐标 (col, row)
+              for lon, lat in ring:
+                  col, row = ~transform * (float(lon), float(lat))
+                  # 四舍五入为整数像素
+                  pixel_coords.append((int(round(col)), int(round(row))))
+              # 在掩膜上绘制多边形并填充
+              drawer.polygon(pixel_coords, outline=1, fill=1)
+          except Exception as e:
+              print(f"[ERROR] Polygon drawing failed at {region}, polygon={ring}, error={e}")
+              raise
 
-        # 5) 经纬度转像素坐标 (col, row)
-        pix_coords = []
-        for pt_idx, coord in enumerate(coords_list):
-            try:
-                lon, lat = coord[:2]
-                lon = float(lon)
-                lat = float(lat)
-                col_f, row_f = ~transform * (lon, lat)
-            except Exception as e:
-                print(f"[ERROR] sample={idx}, point={pt_idx}, coord={coord}, type={type(coord)}")
-                raise
-            pix_coords.append((col_f, row_f))
+      # 6) 将掩膜缩放到与图像相同的输出尺寸，使用最近邻插值保留标签
+      mask = mask.resize(self.output_size, resample=Image.NEAREST)
 
-        # 6) 转成整数并画掩膜
-        int_pts = [(int(round(x)), int(round(y))) for x, y in pix_coords]
-        mask = Image.new('L', (width, height), 0)
-        ImageDraw.Draw(mask).polygon(int_pts, outline=1, fill=1)
-        mask = mask.resize(self.output_size, resample=Image.NEAREST)
+      # 7) 将图像和掩膜转换为 PyTorch 张量
+      img_tensor  = self.transform(img)                            # [3,H,W]
+      mask_np     = np.array(mask, dtype=np.int64)                 # [H,W]
+      mask_tensor = torch.from_numpy(mask_np)                      # dtype long
 
-        # 7) 转张量
-        img_tensor  = self.transform(img)                            # [3,H,W]
-        mask_np     = np.array(mask, dtype=np.int64)                 # [H,W]
-        mask_tensor = torch.from_numpy(mask_np)                      # dtype long
+      return img_tensor, mask_tensor
 
-        return img_tensor, mask_tensor
