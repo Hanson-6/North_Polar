@@ -8,7 +8,7 @@ class FeatColl:
     def __init__(
             self,
             path: Optional[str] = None,
-            data: Optional[ee_featColl] = None
+            data: Optional[ee_featureCollection] = None
         ):
         self.path = path
         self.data = data if data is not None else self.load()
@@ -31,14 +31,14 @@ class FeatColl:
         return True
 
 
-    def load(self) -> ee_featColl:
+    def load(self) -> ee_featureCollection:
         """
         If path is valid, then load.
         """
 
         if self.validPath():
             try:
-                fc = ee_featColl(self.path)
+                fc = ee_featureCollection(self.path)
                 return fc
             except Exception as e:
                 raise ValueError(f"Failed to load FeatureCollection from path {self.path}") from e
@@ -105,6 +105,31 @@ class Platform:
             raise ValueError(f"Platform '{name}' is not supported.")
         else:
             self.specs = PLATFORM_SPECS[name]
+
+
+        # 定义可视化模式
+        self.vis_modes = {
+            'true_color': {
+                'bands': ['B4', 'B3', 'B2'],
+                'name': '真彩色'
+            },
+            'false_color': {
+                'bands': ['B8', 'B4', 'B3'],
+                'name': '标准假彩色'
+            },
+            'urban_false_color': {
+                'bands': ['B12', 'B11', 'B4'],
+                'name': '城市假彩色'
+            },
+            'vegetation': {
+                'bands': ['B8', 'B11', 'B2'],
+                'name': '植被分析'
+            },
+            'swir': {
+                'bands': ['B12', 'B8A', 'B4'],
+                'name': '短波红外'
+            }
+        }
 
 
     def get_bands(self, band_type: str):

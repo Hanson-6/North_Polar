@@ -18,7 +18,7 @@ BASE = os.path.abspath(os.path.dirname(__file__))
 deep = os.path.join(BASE, "deeplab", "DeepLabV3Plus-Pytorch")
 if deep not in sys.path:
     sys.path.insert(0, deep)
-from network._deeplab import DeepLabV3 # 导入 DeepLabV3+ 模型
+from DeepLabV3Plus.python._deeplab import DeepLabV3 # 导入 DeepLabV3+ 模型
 from dataset.dataset import ArcticSegmentationDataset # 导入自定义数据集
 
 def compute_metrics(preds, truths, num_classes=2):
@@ -35,8 +35,9 @@ def compute_metrics(preds, truths, num_classes=2):
     for pi, ti in zip(p, t):
         if ti < num_classes:
             conf[ti, pi] += 1
+            
     ious = []
-    for cls in range(c):
+    for cls in range(num_classes):
         tp = conf[cls, cls]  # 真正类：预测正确的像素数
         fp = conf[:, cls].sum() - tp # 假正类 FP：预测成 cls，但真实不是 cls
         fn = conf[cls, :].sum() - tp # 假负类 FN：真实是 cls，但预测错了

@@ -3,7 +3,6 @@ docs/res/
 
 # Files Under Test
 test.py
-area/
 
 # System Files
 .DS_Store
@@ -11,7 +10,10 @@ __pycache__/
 .vscode/
 
 # dataset
+dataset/
 
+# checkpoints
+checkpoints/
 
 # model
 #deeplab/

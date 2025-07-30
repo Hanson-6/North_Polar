@@ -1,63 +1,75 @@
+# python/gee_modules/GEE.py
+
 import ee
+import math
+import numpy as np
+from PIL import Image
+import requests
+import io
 
 from gee_modules.config import *
-from gee_modules.schema import FeatColl, Platform
+from gee_modules.schema import Platform
 from annotation.utils import Tool
+from gee_modules.GMap import GMap
 
+from IPython.display import display
 
+class GEEBase:
+    """
+    GEE基础类，实现基本的功能服务
+    """
 
-class GEE:
-    def __init__(self, project_id, platform_name):
-        self.project_id = project_id
-        self.connect()
+    def __init__(self, platform_name):
+        # 初始化GMap - 修改这里，传入self实例
+        self.gmap = GMap(gee_instance=self)
+
+        # 设置影像平台
         self.platform = Platform(platform_name)
-        
-        # 定义可视化模式
-        self.vis_modes = {
-            'true_color': {
-                'bands': ['B4', 'B3', 'B2'],
-                'name': '真彩色'
-            },
-            'false_color': {
-                'bands': ['B8', 'B4', 'B3'],
-                'name': '标准假彩色'
-            },
-            'urban_false_color': {
-                'bands': ['B12', 'B11', 'B4'],
-                'name': '城市假彩色'
-            },
-            'vegetation': {
-                'bands': ['B8', 'B11', 'B2'],
-                'name': '植被分析'
-            },
-            'swir': {
-                'bands': ['B12', 'B8A', 'B4'],
-                'name': '短波红外'
-            }
-        }
-    
 
-    def connect(self):
+
+    """
+    以下函数为功能函数，服务于用户操作平台的功能
+    """
+
+    def connect(self, project_id):
         """
-        Connect to Google Earth Engine
+        连接到GEE引擎
+
+        参数：
+            project_id[str]: GEE项目ID
         """
+
         try:
             ee.Authenticate()
-            ee.Initialize(project=self.project_id)
+            ee.Initialize(project=project_id)
             print("✅ 成功连接到Google Earth Engine")
+
         except Exception as e:
             print(f"❌ GEE连接失败: {str(e)}")
             raise
 
+        
+    """
+    这些函数是为了训练模型而做准备。
+    """
 
-    def makeGrids(self, rect_bounds, num_rows, num_cols):
+    def makeGrids(self, rect_bound, num_rows, num_cols):
         """
-        Create a grid of rectangles within the specified bounds.
-        """
-        if rect_bounds is None:
-            raise ValueError("rect_bounds must be provided")
+        根据给定的矩形边界和行列数创建网格（方便探索地图需要放缩到什么比例，才能看到地面细节）
 
-        coords = ee_list(rect_bounds.coordinates().get(0))
+        参数：
+            rect_bound[ee_polygon]: 矩形边界
+            num_rows[int]: 行数
+            num_cols[int]: 列数
+
+        返回：
+            ee_featureCollection: 包含网格单元的FeatureCollection
+        """
+        
+        if rect_bound is None:
+            raise ValueError("rect_bound must be provided")
+
+        coords = ee_list(rect_bound.coordinates().get(0))
         get_val = lambda coord_idx, point_idx: ee_number(ee_list(coords.get(coord_idx)).get(point_idx))
         
         num_rows = ee_number(num_rows)
@@ -87,15 +99,21 @@ class GEE:
             return ee_list(col_seq.map(create_col))
         
         all_cells = ee_list(row_seq.map(create_row))
-        grid_fc = ee_featColl(ee_list(all_cells).flatten())
+        grid_fc = ee_featureCollection(ee_list(all_cells).flatten())
 
         return grid_fc
     
-
     def maskClouds(self, image):
         """
-        稳定的云掩码算法，仅使用QA60波段
+        使用QA60波段掩码云和卷云
+
+        参数：
+            image[ee_image]: 输入影像
+
+        返回：
+            ee_image: 掩码后的影像
         """
+
         qa = image.select('QA60')
         # 云的位掩码
         cloudBitMask = 1 << 10
@@ -109,8 +127,7 @@ class GEE:
         return image.updateMask(mask).select(
             image.bandNames()  # 保留所有波段
         ).copyProperties(image, ['system:time_start'])
-
-
+    
     def addIndices(self, image):
         """
         添加对建筑物检测有用的指数
@@ -139,31 +156,33 @@ class GEE:
         ).rename('BSI')
         
         return image.addBands([ndvi, ndbi, ndwi, bui, bsi])
-
-
+    
     def exportPic(self,
-                coords,
-                band_type='rgb',
-                start_date='2022-01-01',
-                end_date='2023-12-31',
-                vis_mode='true_color',
-                add_indices=False,
-                composite_method='median'):
+        coords,
+        band_type='rgb',
+        start_date='2022-01-01',
+        end_date='2023-12-31',
+        vis_mode='true_color',
+        add_indices=False,
+        composite_method='median'):
         """
-        Export a picture from Google Earth Engine.
-        
-        Args:
-            coords: 几何边界
-            band_type: 波段类型（兼容旧版本）
-            start_date: 开始日期
-            end_date: 结束日期
-            vis_mode: 可视化模式
-            add_indices: 是否添加建筑物相关指数
-            composite_method: 合成方法 ('median', 'mean', 'mosaic')
+        导出指定区域的影像
+
+        参数：
+            coords[ee_geometry]: 区域坐标（Geometry或FeatureCollection）
+            band_type[str]: 波段类型（如'rgb', 'ndvi', 'ndbi', 'ndwi', 'bui', 'bsi'）
+            start_date[str]: 开始日期（格式：YYYY-MM-DD）
+            end_date[str]: 结束日期（格式：YYYY-MM-DD）
+            vis_mode[str]: 可视化模式（如'true_color', 'false_color', 'urban_false_color'）
+            add_indices[bool]: 是否添加指数
+            composite_method[str]: 合成方法（如'median', 'mean', 'mosaic'）
+
+        返回：
+            dict: 包含影像、可视化参数、边界和其他信息的字典
         """
 
         # 确保coords是Geometry
-        if isinstance(coords, (ee_feature, ee_featColl, ee_element)):
+        if isinstance(coords, (ee_feature, ee_featureCollection, ee_element)):
             coords = coords.geometry()
         
         # 获取影像集合
@@ -204,8 +223,8 @@ class GEE:
         composite = composite.clip(coords)
         
         # 获取可视化波段
-        if vis_mode in self.vis_modes:
-            vis_bands = self.vis_modes[vis_mode]['bands']
+        if vis_mode in self.platform.vis_modes:
+            vis_bands = self.platform.vis_modes[vis_mode]['bands']
         else:
             # 兼容旧版本的band_type参数
             vis_bands = self.platform.get_bands(band_type)
@@ -246,6 +265,170 @@ class GEE:
         
         return result
     
+    def exportSingleAreaForModel(self,
+                                geometry,
+                                output_size=(256, 256),
+                                start_date='2022-01-01',
+                                end_date='2023-12-31',
+                                vis_mode='true_color'):
+        """
+        导出单个区域的影像供模型使用
+        
+        参数：
+            geometry[ee_geometry]: 区域几何
+            output_size[tuple]: 输出尺寸 (width, height)
+            start_date[str]: 开始日期
+            end_date[str]: 结束日期
+            vis_mode[str]: 可视化模式
+            
+        返回：
+            dict: 包含图像数据和元信息的字典
+        """
+        try:
+            # 获取影像数据
+            pic_data = self.exportPic(
+                coords=geometry,
+                start_date=start_date,
+                end_date=end_date,
+                vis_mode=vis_mode,
+                composite_method='median'
+            )
+            
+            # 直接使用已经配置好的image和vis_params
+            image = pic_data['image']
+            vis_params = pic_data['vis_params']
+            
+            # 生成图片URL
+            url = image.visualize(**vis_params).getThumbURL({
+                'dimensions': output_size,
+                'format': 'png',
+            })
+            
+            # 下载图像数据
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            
+            # 转换为PIL Image
+            pil_image = Image.open(io.BytesIO(response.content))
+            
+            # 转换为numpy数组
+            image_array = np.array(pil_image)
+            
+            # 获取边界信息
+            bounds_info = geometry.bounds().getInfo()
+            
+            return {
+                'image': pil_image,
+                'image_array': image_array,
+                'bounds': bounds_info,
+                'geometry': geometry.getInfo(),
+                'vis_mode': vis_mode,
+                'size': output_size
+            }
+            
+        except Exception as e:
+            print(f"导出图像失败: {str(e)}")
+            return None
+    
+    def importData(self, dir_path):
+        """
+        从指定目录导入国家边界数据（json数据）
+        """
+        
+        countries_polygons = Tool.readBunchJSON(dir_path)
+        
+        dataset = {}
+        for country in countries_polygons.keys():
+            coords = countries_polygons[country]
+            coords = ee_featureCollection(list(map(lambda coord : ee_feature(ee_poly(coord)), coords)))
+            bounds = ee_featureCollection(coords.map(lambda coord : ee_feature(coord.geometry().bounds())))
+            
+            dataset[country] = {
+                'coords': coords,
+                'bounds': bounds
+            }
+        
+        return dataset
+    
+    def expandBound(self, bound, ratio=0.3):
+        """
+        扩展bound的面积，使其增加指定比例（比如，0.3=30%）
+
+        参数：
+            bound[list]: 原始边界坐标列表，例如 [[lon1, lat1], [lon2, lat2], ..., [lon1, lat1]]
+            ratio[float]: 扩展比例，默认0.3（30%）
+
+        返回：
+            ee_rect: 扩展后的边界矩形
+        """
+
+        # 一次循环，获得边界的最小和最大经纬度
+        min_lon, max_lon = float('inf'), float('-inf')
+        min_lat, max_lat = float('inf'), float('-inf')
+
+        for coord in bound:
+            if coord[0] < min_lon: min_lon = coord[0]
+            if coord[0] > max_lon: max_lon = coord[0]
+            if coord[1] < min_lat: min_lat = coord[1]
+            if coord[1] > max_lat: max_lat = coord[1]
+
+        # 获取中心点，和半宽高
+        center_lon = (min_lon + max_lon) / 2
+        center_lat = (min_lat + max_lat) / 2
+        half_width = (max_lon - min_lon) / 2
+        half_height = (max_lat - min_lat) / 2
+
+        # 获取扩展比例
+        scale = math.sqrt(1 + ratio)
+
+        # 计算新的边界
+        new_half_width = half_width * scale
+        new_half_height = half_height * scale
+
+        new_min_lon = center_lon - new_half_width
+        new_max_lon = center_lon + new_half_width
+        new_min_lat = center_lat - new_half_height
+        new_max_lat = center_lat + new_half_height
+
+        new_bound = [
+            [new_min_lon, new_min_lat],
+            [new_max_lon, new_min_lat],
+            [new_max_lon, new_max_lat],
+            [new_min_lon, new_max_lat],
+            [new_min_lon, new_min_lat]  # 闭合
+        ]
+
+        # return new_bound
+        return new_bound
+
+
+
+class GEE(GEEBase):
+    """
+    继承GEEBase类，拓展功能。
+
+    这是真正的操作类
+    """
+
+    
+    def __init__(self, GEE_PROJECT_ID):
+        # 连接GEE引擎
+        self.connect(GEE_PROJECT_ID)
+        
+        # 继承基础类
+        super().__init__(platform_name='sentinel2')
+
+    
+    def main(self):
+        """
+        主函数，执行GEE用户平台
+        """
+        # 启动地图
+        self.gmap.start()
+
+    """
+    这些函数是为了训练模型而做准备。
+    """
 
     def exportBunchPics(self,
                         coords_list,
@@ -291,57 +474,13 @@ class GEE:
         print(f"✅ 完成！成功处理 {len(pics_list)}/{total} 个区域")
         return pics_list
     
-
-    def importData(self, dir_path):
+    def expandBunchBound(self, bounds, ratio=0.3):
         """
-        Import JSON data from given directory path
+        批量扩展边界
         """
-        countries_polygons = Tool.readBunchJSON(dir_path)
+        expanded_bounds = []
+        for bound in bounds:
+            expanded_bound = self.expandBound(bound, ratio)
+            expanded_bounds.append(expanded_bound)
         
-        dataset = {}
-        for country in countries_polygons.keys():
-            coords = countries_polygons[country]
-            coords = ee_featColl(list(map(lambda coord : ee_feature(ee_poly(coord)), coords)))
-            bounds = ee_featColl(coords.map(lambda coord : ee_feature(coord.geometry().bounds())))
-            
-            dataset[country] = {
-                'coords': coords,
-                'bounds': bounds
-            }
-        
-        return dataset
-    
-
-    def analyzeImageQuality(self, bounds, start_date, end_date):
-        """
-        分析指定区域和时间范围内的影像质量
-        """
-        # 获取影像集合
-        collection = ee.ImageCollection(self.platform.get_collection()) \
-            .filterBounds(bounds) \
-            .filterDate(start_date, end_date)
-        
-        # 基本统计
-        total_count = collection.size()
-        
-        # 云量统计
-        if self.platform.name == 'sentinel2':
-            cloud_stats = collection.aggregate_stats('CLOUDY_PIXEL_PERCENTAGE')
-            
-            # 低云量影像数
-            low_cloud = collection.filter(
-                ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)
-            ).size()
-            
-            print("📊 影像质量分析报告")
-            print(f"时间范围: {start_date} 到 {end_date}")
-            print(f"总影像数: {total_count.getInfo()}")
-            print(f"低云量影像 (<20%): {low_cloud.getInfo()}")
-            
-            stats = cloud_stats.getInfo()
-            if stats:
-                print(f"平均云量: {stats.get('mean', 'N/A'):.1f}%")
-                print(f"最小云量: {stats.get('min', 'N/A'):.1f}%")
-                print(f"最大云量: {stats.get('max', 'N/A'):.1f}%")
-        
-        return collection
+        return expanded_bounds

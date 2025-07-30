@@ -4,7 +4,7 @@ import ee
 
 # alias
 ee_feature = ee.feature.Feature
-ee_featColl = ee.featurecollection.FeatureCollection
+ee_featureCollection = ee.featurecollection.FeatureCollection
 ee_poly = ee.geometry.Geometry.Polygon
 ee_geometry = ee.geometry.Geometry
 ee_list = ee.ee_list.List
@@ -13,6 +13,7 @@ ee_imgColl = ee.imagecollection.ImageCollection
 ee_filter = ee.filter.Filter
 ee_dict = ee.dictionary.Dictionary
 ee_element = ee.element.Element
+ee_rect = ee.geometry.Geometry.Rectangle
 
 
 # Platform Specifications
@@ -42,3 +43,6 @@ PLATFORM_SPECS = {
         }
     },
 }
+
+
+# 
