@@ -9,15 +9,14 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 import numpy as np
 
-# 获取当前文件所在目录
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# 获取父目录 (model目录)
-parent_dir = os.path.dirname(current_dir)
-# 将父目录添加到Python路径
-sys.path.insert(0, parent_dir)
-sys.path.insert(0, current_dir+'/code')
+import sys
+deeplab_python_dir = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\DeepLabV3Plus\python'
+# filtered_dataset_dir = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\filtered_dataset'
+filtered_dataset_dir = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\enlarged_filtered_dataset'
+sys.path.append(deeplab_python_dir)
+sys.path.append(filtered_dataset_dir)
 
-from filtered_dataset.dataset import ArcticSegmentationDataset
+from dataset import ArcticSegmentationDataset
 from _deeplab import DeepLabV3
 
 def compute_metrics(preds, truths, num_classes=2):
@@ -146,7 +145,8 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=5, verbose=True
+        optimizer, mode='min', factor=0.5, patience=5, 
+        # verbose=True
     )
     
     # 创建checkpoint目录
@@ -216,18 +216,27 @@ def main(args):
 
 if __name__ == '__main__':
     file_dirpath = os.getcwd()
-    filtered_dataset_dirpath = '/share/home/u20169/North_Polar/python/model/filtered_dataset'
-    result_dirpath = '/share/home/u20169/North_Polar/python/model/python/checkpoints'
+    # filtered_dataset_dirpath = '/share/home/u20169/North_Polar/python/model/filtered_dataset'
+    # filtered_dataset_dirpath = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\filtered_dataset'
+    filtered_dataset_dirpath = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\enlarged_filtered_dataset'
+    # result_dirpath = '/share/home/u20169/North_Polar/python/model/python/checkpoints'
+    result_dirpath = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\DeepLabV3Plus\checkpoints'
     
     parser = argparse.ArgumentParser(description='Train DeepLabV3Plus model')
     
     # 数据相关参数
     parser.add_argument('--polygons_dir', type=str,
-                        default=f'{filtered_dataset_dirpath}/filtered_polygons',
+                        # default=f'{filtered_dataset_dirpath}/filtered_polygons',
+                        default=f'{filtered_dataset_dirpath}/polygons',
                         help='Path to GeoJSON polygons directory')
+    
+
     parser.add_argument('--images_dir', type=str,
-                        default=f'{filtered_dataset_dirpath}/filtered_sentinel_2',
+                        # default=f'{filtered_dataset_dirpath}/filtered_sentinel_2',
+                        default=f'{filtered_dataset_dirpath}/sentinel_2',
                         help='Path to Sentinel-2 images directory')
+    
+
     parser.add_argument('--output_size', nargs=2, type=int, default=[256, 256],
                         help='Output image size (default: 256 256)')
     
@@ -249,7 +258,7 @@ if __name__ == '__main__':
     
     # 保存相关参数
     parser.add_argument('--checkpoint_dir', '--ckpt', type=str, 
-                        default=f'result_dirpath',
+                        default=f'{result_dirpath}',
                         help='Directory to save checkpoints')
     parser.add_argument('--save_interval', type=int, default=10,
                         help='Save checkpoint every N epochs (default: 10)')

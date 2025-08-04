@@ -19,7 +19,7 @@ deep = os.path.join(BASE, "deeplab", "DeepLabV3Plus-Pytorch")
 if deep not in sys.path:
     sys.path.insert(0, deep)
 from DeepLabV3Plus.python._deeplab import DeepLabV3 # 导入 DeepLabV3+ 模型
-from dataset.dataset import ArcticSegmentationDataset # 导入自定义数据集
+from python.model.filtered_dataset.dataset import ArcticSegmentationDataset # 导入自定义数据集
 
 def compute_metrics(preds, truths, num_classes=2):
     """

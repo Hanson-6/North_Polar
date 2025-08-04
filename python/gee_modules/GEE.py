@@ -9,7 +9,7 @@ import io
 
 from gee_modules.config import *
 from gee_modules.schema import Platform
-from annotation.utils import Tool
+from dataset.utils import Tool
 from gee_modules.GMap import GMap
 
 from IPython.display import display
@@ -330,22 +330,36 @@ class GEEBase:
             print(f"导出图像失败: {str(e)}")
             return None
     
-    def importData(self, dir_path):
+    def importData(self, dir_path, enlarge=False):
         """
-        从指定目录导入国家边界数据（json数据）
+        从指定目录导入国家边界数据（json数据），并可选扩展边界面积
+
+        参数：
+            dir_path[str]: JSON文件目录路径
+            enlarge[bool]: 是否扩展边界面积（默认False，若True则扩展50%）
+
+        返回：
+            dict: 包含国家名称和对应边界信息的字典
         """
-        
         countries_polygons = Tool.readBunchJSON(dir_path)
         
         dataset = {}
         for country in countries_polygons.keys():
             coords = countries_polygons[country]
-            coords = ee_featureCollection(list(map(lambda coord : ee_feature(ee_poly(coord)), coords)))
-            bounds = ee_featureCollection(coords.map(lambda coord : ee_feature(coord.geometry().bounds())))
+            
+            # 创建原始边界FeatureCollection
+            coords_fc = ee.FeatureCollection(list(map(lambda coord: ee.Feature(ee.Geometry.Polygon(coord)), coords)))
+            
+            if enlarge:
+                # 扩展每个边界50%
+                expanded_coords = self.expandBunchBound(coords, ratio=1.0)
+                bounds_fc = ee.FeatureCollection(list(map(lambda coord: ee.Feature(ee.Geometry.Polygon(coord).bounds()), expanded_coords)))
+            else:
+                bounds_fc = ee.FeatureCollection(coords_fc.map(lambda coord: ee.Feature(coord.geometry().bounds())))
             
             dataset[country] = {
-                'coords': coords,
-                'bounds': bounds
+                'coords': coords_fc,
+                'bounds': bounds_fc
             }
         
         return dataset

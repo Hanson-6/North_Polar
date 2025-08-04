@@ -380,7 +380,7 @@ class AreaAITool(MapTool):
         
         # Try to import model interface
         # try:
-        base_path = '/Users/haha/Library/CloudStorage/OneDrive-TheUniversityofHongKong-Connect/项目/测绘-TJ/north_polar/python/model/DeepLabV3Plus'
+        base_path = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\DeepLabV3Plus'
         model_interface_path = base_path + '/python'
         import sys
         sys.path.append(model_interface_path)
@@ -389,7 +389,9 @@ class AreaAITool(MapTool):
         self.model_interface = DeepLabV3PlusInterface(
             # checkpoint_path=base_path+'/checkpoints/checkpoint_epoch50_20250729_223146.pth',
             # checkpoint_path=base_path+'/checkpoints/checkpoint_epoch30_20250730_004227.pth',
-            checkpoint_path=base_path + '/checkpoints/checkpoint_epoch40_20250730_011744.pth'
+            # checkpoint_path=base_path + '/checkpoints/checkpoint_epoch40_20250730_011744.pth',
+            checkpoint_path=base_path + '/checkpoints/' + 'checkpoint_epoch30_20250731_181940.pth',
+            # checkpoint_path=base_path + '/checkpoints/' + '',
         )
         logger.info("Model interface loaded successfully")
         # except Exception as e:

@@ -52,7 +52,7 @@ class DeepLabV3PlusInference:
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
         
         print(f"Loading checkpoint from: {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
+        checkpoint = torch.load(checkpoint_path, map_location='cuda')
         
         # 加载模型权重
         if 'model_state_dict' in checkpoint:
