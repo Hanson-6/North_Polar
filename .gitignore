@@ -10,7 +10,7 @@ __pycache__/
 .vscode/
 
 # dataset
-dataset/
+# dataset/
 
 # checkpoints
 checkpoints/
