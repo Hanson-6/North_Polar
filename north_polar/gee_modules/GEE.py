@@ -290,7 +290,7 @@ class GEEBase:
                 coords=geometry,
                 start_date=start_date,
                 end_date=end_date,
-                vis_mode=vis_mode,
+                vis_mode='urban_false_color',
                 composite_method='median'
             )
             

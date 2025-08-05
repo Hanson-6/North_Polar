@@ -27,7 +27,7 @@ if model_path not in sys.path:
 
 # Try to import the model
 # try:
-from inference import DeepLabV3PlusInference
+from .inference import DeepLabV3PlusInference
 MODEL_AVAILABLE = True
 # except ImportError:
 #     logger.warning("DeepLabV3Plus model not found. Using mock predictions.")

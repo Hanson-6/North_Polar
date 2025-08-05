@@ -6,7 +6,7 @@ from torchvision import transforms
 import rasterio
 from typing import Union, Tuple, Optional, Dict
 
-from _deeplab import DeepLabV3
+from ._deeplab import DeepLabV3
 
 class DeepLabV3PlusInference:
     """
@@ -26,10 +26,15 @@ class DeepLabV3PlusInference:
         """
         # 设置设备
         if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            if torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            elif torch.backends.mps.is_available():  # 检查MPS可用（Mac专属）
+                self.device = torch.device("mps")
+            else:
+                self.device = torch.device("cpu")
         else:
             self.device = torch.device(device)
-        
+            
         print(f"Using device: {self.device}")
         
         # 加载模型
@@ -52,7 +57,8 @@ class DeepLabV3PlusInference:
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
         
         print(f"Loading checkpoint from: {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location='cuda')
+        # 先加载到CPU，避免设备冲突
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
         
         # 加载模型权重
         if 'model_state_dict' in checkpoint:

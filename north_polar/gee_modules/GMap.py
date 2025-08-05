@@ -26,6 +26,10 @@ import io
 import tempfile
 from datetime import datetime
 import ipyleaflet
+from pathlib import Path
+import json
+
+from model.DeepLabV3Plus.code.model_interface import DeepLabV3PlusInterface
 
 # Configure logging
 logging.basicConfig(
@@ -377,25 +381,24 @@ class AreaAITool(MapTool):
         self.drawn_rectangle = None
         self.result_layer = None
         self.model_interface = None
-        
-        # Try to import model interface
-        # try:
-        base_path = r'D:\HKU\OneDrive - The University of Hong Kong - Connect\项目\测绘-TJ\north_polar\python\model\DeepLabV3Plus'
-        model_interface_path = base_path + '/python'
-        import sys
-        sys.path.append(model_interface_path)
 
-        from model_interface import DeepLabV3PlusInterface
+        # 存储路径（测试）
+        self.base_path = Path(__file__).parent.parent  # north_polar目录
+        self.img_save_path = self.base_path / 'gee_modules' / 'results' / 'imgs'
+        self.json_save_path = self.base_path / 'gee_modules' / 'results' / 'json'
+
+        # 模型路径
+        checkpoint_path = Path(__file__).parent.parent / 'model' / 'DeepLabV3Plus' / 'checkpoints'
+        checkpoint_name = 'checkpoint_epoch30_20250731_181940.pth'
         self.model_interface = DeepLabV3PlusInterface(
-            # checkpoint_path=base_path+'/checkpoints/checkpoint_epoch50_20250729_223146.pth',
-            # checkpoint_path=base_path+'/checkpoints/checkpoint_epoch30_20250730_004227.pth',
-            # checkpoint_path=base_path + '/checkpoints/checkpoint_epoch40_20250730_011744.pth',
-            checkpoint_path=base_path + '/checkpoints/' + 'checkpoint_epoch30_20250731_181940.pth',
-            # checkpoint_path=base_path + '/checkpoints/' + '',
+            checkpoint_path= checkpoint_path / checkpoint_name
         )
         logger.info("Model interface loaded successfully")
         # except Exception as e:
             # logger.error(f"Failed to load model interface: {e}")
+
+        self.draw_control = None  # 添加
+        self.rectangle_layer = None  # 添加
         
     def activate(self) -> None:
         """Activate the area analysis tool."""
@@ -438,7 +441,8 @@ class AreaAITool(MapTool):
         """Start the rectangle drawing mode."""
         # try:
         # Create draw control for rectangle
-        draw_control = ipyleaflet.DrawControl(
+        # Create draw control for rectangle
+        self.draw_control = ipyleaflet.DrawControl(  # 保存到self
             marker={},
             rectangle={'shapeOptions': {'color': '#ff0000'}},
             circle={},
@@ -448,10 +452,10 @@ class AreaAITool(MapTool):
         )
         
         # Add event handler
-        draw_control.on_draw(self._on_rectangle_drawn)
+        self.draw_control.on_draw(self._on_rectangle_drawn)
         
         # Add control to map
-        self.map.gmap.add(draw_control)
+        self.map.gmap.add(self.draw_control)
             
         # except Exception as e:
         #     logger.error(f"Failed to start rectangle drawing: {e}")
@@ -461,19 +465,33 @@ class AreaAITool(MapTool):
     def _on_rectangle_drawn(self, feature, action, geo_json) -> None:
         """Handle rectangle drawing completion."""
         if action == 'created' and geo_json['geometry']['type'] == 'Polygon':
-            # try:
             # Get rectangle coordinates
             coords = geo_json['geometry']['coordinates'][0]
             
-            # Ensure it's a proper rectangle (4 corners + closing point)
             if len(coords) == 5:
                 self.drawn_rectangle = coords
                 self.is_drawing = False
                 
+                # 移除绘图控件
+                if self.draw_control:
+                    self.map.gmap.remove(self.draw_control)
+                
+                # 创建矩形图层
+                rectangle = ipyleaflet.Polygon(
+                    locations=[[coord[1], coord[0]] for coord in coords],
+                    color="red",
+                    fill_color="red", 
+                    fill_opacity=0.1,
+                    weight=2,
+                    name="Area Selection"  # 添加这一行，给图层命名
+                )
+                
+                # 添加到地图并保存引用
+                self.map.gmap.add_layer(rectangle)
+                self.rectangle_layer = rectangle
+                
                 # Process the rectangle
                 self._process_rectangle(coords)
-            else:
-                self.map.status_panel.update("请绘制一个标准的矩形", 'warning')
                     
             # except Exception as e:
             #     logger.error(f"Error processing drawn rectangle: {e}")
@@ -498,6 +516,29 @@ class AreaAITool(MapTool):
         
         if not image_data:
             raise ValueError("Failed to export image from GEE")
+        
+        # 添加：保存输入图像和坐标
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 保存RGB图像
+        img_filename = f"input_area_{timestamp}.png"
+        img_filepath = self.img_save_path / img_filename
+        image_data['image'].save(img_filepath)
+        logger.info(f"Saved input image to: {img_filepath}")
+        
+        # 保存坐标信息
+        json_filename = f"input_area_{timestamp}.json"
+        json_filepath = self.json_save_path / json_filename
+        coord_data = {
+            'timestamp': timestamp,
+            'rectangle_coords': coords,
+            'ee_geometry': image_data['geometry'],
+            'bounds': image_data['bounds'],
+            'image_file': img_filename
+        }
+        with open(json_filepath, 'w') as f:
+            json.dump(coord_data, f, indent=2)
+        logger.info(f"Saved coordinates to: {json_filepath}")
             
         # Run model inference
         logger.info("Running model inference...")
@@ -519,7 +560,12 @@ class AreaAITool(MapTool):
         # try:
             # Convert mask to image layer
             # This is a simplified version - you might need to adjust based on your needs
-            
+
+        # 隐藏选择矩形
+        if self.rectangle_layer:
+            self.map.gmap.remove_layer(self.rectangle_layer)
+            self.rectangle_layer = None
+                
         # Convert mask to image layer
         # Create a temporary file for the mask
         temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
@@ -599,6 +645,11 @@ class AreaAITool(MapTool):
         if self.result_layer:
             self.map.gmap.remove_layer(self.result_layer)
             self.result_layer = None
+
+        # 移除矩形图层
+        if self.rectangle_layer:
+            self.map.gmap.remove_layer(self.rectangle_layer)
+            self.rectangle_layer = None
             
         self.map.status_panel.update("已取消", 'info')
 
