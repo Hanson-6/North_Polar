@@ -18,7 +18,7 @@ The project also provides a comprehensive suite of code interfaces and tools, in
 - Code development and execution using Google Colab.
 
 ## Progress
-2025-08-05: First Draft Version completed 🎉. Both Windows and Mac system can run this system. Feel free to downlaod. Please run `north_polar/main.ipynb`
+2025-08-05: First Draft Version completed 🎉. Both Windows and Mac system can run this system. Feel free to download. Please run `north_polar/main.ipynb`
 
 ## Future
 2025-08-19: We have decided to further develop a more precise semantic segmentation model, where each training image will contain two labels: background areas labeled as 0 and urban areas labeled as 1.
