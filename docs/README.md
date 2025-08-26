@@ -15,3 +15,8 @@ The North Polar Project aims to design an efficient coverage algorithm for urban
 
 ## Progress
 2025-08-05: First Draft Version completed 🎉. Both Windows and Mac system can run this system. Feel free to downlaod. Please run `north_polar/main.ipynb`
+
+## Future
+2025-08-19: We have decided to further develop a more precise semantic segmentation model, where each training image will contain two labels: background areas labeled as 0 and urban areas labeled as 1.
+
+This system can be extended to enable real-time monitoring of buildings in the Arctic region, with automated dataset generation. It has the potential to advance the current capabilities of remote sensing satellites in Arctic applications.
