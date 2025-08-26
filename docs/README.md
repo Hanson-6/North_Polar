@@ -2,7 +2,11 @@
 
 ## Project Description
 
-The North Polar Project aims to design an efficient coverage algorithm for urban areas in the Arctic region, minimizing geographic scope to target densely built-up zones while avoiding the collection of irrelevant data (such as forests and rivers). The project leverages the powerful geospatial analysis capabilities of Google Earth Engine (GEE) and the interactive development environment of Google Colab.
+The North Polar Project aims to design an efficient spatial coverage algorithm for urban areas in the Arctic region, targeting dense building zones with minimal geographic footprint while avoiding the collection of redundant data (e.g., forests, rivers, and other non-urban surfaces). The project leverages the powerful geospatial analytics capabilities of Google Earth Engine (GEE) and the interactive development environment of Google Colab to enable scalable and high-performance remote sensing processing.
+
+This system can be extended to enable real-time monitoring of buildings in the Arctic region, with automated dataset generation. It has the potential to advance the current capabilities of remote sensing satellites in Arctic applications.
+
+The project also provides a comprehensive suite of code interfaces and tools, including multi-threaded downloading of Sentinel-2 satellite imagery from GEE, a complete annotation system (to be open-sourced soon), a customized project map based on GMap, model inference interfaces, and standardized training datasets. These resources are designed to lower technical barriers and empower researchers and industry practitioners to quickly deploy, adapt, and extend the system—advancing automated and intelligent urban monitoring in the Arctic region.
 
 ## Project Background
 - Geographic Scope: The project covers the entire Arctic region, including countries such as Finland, Iceland, Russia, and Canada.
@@ -19,4 +23,4 @@ The North Polar Project aims to design an efficient coverage algorithm for urban
 ## Future
 2025-08-19: We have decided to further develop a more precise semantic segmentation model, where each training image will contain two labels: background areas labeled as 0 and urban areas labeled as 1.
 
-This system can be extended to enable real-time monitoring of buildings in the Arctic region, with automated dataset generation. It has the potential to advance the current capabilities of remote sensing satellites in Arctic applications.
+2025-08-25: Third version of annotation tool is developing, with automated dataset cleaning pipeline.
