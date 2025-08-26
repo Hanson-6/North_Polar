@@ -1,14 +1,17 @@
-# North Polar 项目
+# North Polar Project
 
-## 项目描述
+## Project Description
 
-North Polar 项目旨在为北极地区的城市区域设计一种高效的覆盖算法，通过最小的地理范围覆盖建筑物密集区域，避免获取无关数据（如森林、河流）。项目利用 Google Earth Engine (GEE) 的强大地理空间分析能力和 Google Colab 的交互式开发环境实现。
+The North Polar Project aims to design an efficient coverage algorithm for urban areas in the Arctic region, minimizing geographic scope to target densely built-up zones while avoiding the collection of irrelevant data (such as forests and rivers). The project leverages the powerful geospatial analysis capabilities of Google Earth Engine (GEE) and the interactive development environment of Google Colab.
 
-## 项目背景
-+ 地理范围：项目覆盖整个北极地区，包括芬兰、冰岛、俄罗斯、加拿大等国家。
-+ 挑战：直接获取高精度地理信息成本高昂，且包含大量与建筑物无关的数据。
-+ 目标：设计算法以最小的范围覆盖所有必要的城市区域（建筑物密集区）。
+## Project Background
+- Geographic Scope: The project covers the entire Arctic region, including countries such as Finland, Iceland, Russia, and Canada.
+- Challenge: Acquiring high-resolution geospatial data directly is costly and often includes large amounts of data unrelated to buildings.
+- Objective: Develop an algorithm to cover all essential urban (building-dense) areas with minimal geographic footprint.
 
-## 技术要求
-+ 基于 Google Earth Engine (GEE) 平台进行地理数据处理。
-+ 使用 Google Colab 进行代码开发和运行。
+## Technical Requirements
+- Geospatial processing based on the Google Earth Engine (GEE) platform.
+- Code development and execution using Google Colab.
+
+## Progress
+2025-08-05: First Draft Version completed 🎉. Both Windows and Mac system can run this system. Feel free to downlaod. Please run `north_polar/main.ipynb`
